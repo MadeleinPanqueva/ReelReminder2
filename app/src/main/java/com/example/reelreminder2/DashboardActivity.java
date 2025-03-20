@@ -1,6 +1,7 @@
 package com.example.reelreminder2;
 
 import android.content.Intent;
+import android.database.Cursor;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.MediaStore;
@@ -9,34 +10,46 @@ import android.view.View;
 import android.widget.ArrayAdapter;
 import android.widget.AutoCompleteTextView;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.Toast;
 
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.SearchView;
+import androidx.appcompat.widget.Toolbar;
 import androidx.cardview.widget.CardView;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.android.material.textfield.TextInputEditText;
+import com.example.reelreminder2.adapters.ContentAdapter;
 import com.example.reelreminder2.models.Content;
 
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
 public class DashboardActivity extends AppCompatActivity {
     
     private ImageView ivProfile;
-    private CardView cardLibrary;
-    private CardView cardDetails;
+    private LinearLayout libraryButton;
+    private LinearLayout detailsButton;
     private FloatingActionButton fabAddContent;
     private SessionManager sessionManager;
     private DatabaseHelper dbHelper;
     private Uri selectedImageUri;
     private static final String[] CONTENT_TYPES = {"Película", "Serie", "Anime", "Documental"};
+    private RecyclerView rvRecentContent;
+    private ContentAdapter contentAdapter;
+    private SearchView searchView;
+    private List<Content> recentContentList;
 
     private final ActivityResultLauncher<Intent> imagePickerLauncher = registerForActivityResult(
             new ActivityResultContracts.StartActivityForResult(),
@@ -71,15 +84,102 @@ public class DashboardActivity extends AppCompatActivity {
         
         // Initialize views
         ivProfile = findViewById(R.id.ivProfile);
-        cardLibrary = findViewById(R.id.cardLibrary);
-        cardDetails = findViewById(R.id.cardDetails);
-        fabAddContent = findViewById(R.id.fabAddContent);
+        libraryButton = findViewById(R.id.libraryButton);
+        detailsButton = findViewById(R.id.detailsButton);
+        fabAddContent = findViewById(R.id.fabAdd);
+        Toolbar toolbar = findViewById(R.id.toolbar);
+        setSupportActionBar(toolbar);
+        searchView = findViewById(R.id.searchView);
+        rvRecentContent = findViewById(R.id.rvRecentContent);
         
         // Set click listeners
         ivProfile.setOnClickListener(v -> startActivity(new Intent(this, ProfileActivity.class)));
-        cardLibrary.setOnClickListener(v -> startActivity(new Intent(this, LibraryActivity.class)));
-        cardDetails.setOnClickListener(v -> startActivity(new Intent(this, DetailsActivity.class)));
+        libraryButton.setOnClickListener(v -> startActivity(new Intent(this, LibraryActivity.class)));
+        detailsButton.setOnClickListener(v -> startActivity(new Intent(this, DetailsActivity.class)));
         fabAddContent.setOnClickListener(v -> showAddContentDialog());
+
+        // Configurar RecyclerView
+        recentContentList = new ArrayList<>();
+        contentAdapter = new ContentAdapter(recentContentList, content -> {
+            // Implementar click en contenido
+            Intent intent = new Intent(DashboardActivity.this, ContentDetailActivity.class);
+            intent.putExtra("content_id", content.getId());
+            startActivity(intent);
+        });
+
+        rvRecentContent.setLayoutManager(new LinearLayoutManager(this));
+        rvRecentContent.setAdapter(contentAdapter);
+
+        // Cargar contenido reciente
+        loadRecentContent();
+
+        // Configurar búsqueda
+        searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
+            @Override
+            public boolean onQueryTextSubmit(String query) {
+                searchContent(query);
+                return true;
+            }
+
+            @Override
+            public boolean onQueryTextChange(String newText) {
+                if (newText.length() > 2) {
+                    searchContent(newText);
+                } else if (newText.isEmpty()) {
+                    loadRecentContent();
+                }
+                return true;
+            }
+        });
+
+        // Configurar clicks
+        libraryButton.setOnClickListener(v -> 
+            startActivity(new Intent(DashboardActivity.this, LibraryActivity.class)));
+
+        detailsButton.setOnClickListener(v -> 
+            startActivity(new Intent(DashboardActivity.this, DetailsActivity.class)));
+    }
+
+    private void loadRecentContent() {
+        recentContentList.clear();
+        Cursor cursor = dbHelper.getRecentContent(5); // Obtener los últimos 5 contenidos
+        
+        if (cursor != null && cursor.moveToFirst()) {
+            do {
+                Content content = new Content();
+                content.setId(cursor.getInt(cursor.getColumnIndex(DatabaseHelper.COLUMN_ID)));
+                content.setTitle(cursor.getString(cursor.getColumnIndex(DatabaseHelper.COLUMN_TITLE)));
+                content.setType(cursor.getString(cursor.getColumnIndex(DatabaseHelper.COLUMN_TYPE)));
+                content.setDuration(cursor.getInt(cursor.getColumnIndex(DatabaseHelper.COLUMN_DURATION)));
+                content.setGenre(cursor.getString(cursor.getColumnIndex(DatabaseHelper.COLUMN_GENRE)));
+                content.setImagePath(cursor.getString(cursor.getColumnIndex(DatabaseHelper.COLUMN_IMAGE_PATH)));
+                recentContentList.add(content);
+            } while (cursor.moveToNext());
+            cursor.close();
+        }
+        
+        contentAdapter.notifyDataSetChanged();
+    }
+
+    private void searchContent(String query) {
+        recentContentList.clear();
+        Cursor cursor = dbHelper.searchContent(query);
+        
+        if (cursor != null && cursor.moveToFirst()) {
+            do {
+                Content content = new Content();
+                content.setId(cursor.getInt(cursor.getColumnIndex(DatabaseHelper.COLUMN_ID)));
+                content.setTitle(cursor.getString(cursor.getColumnIndex(DatabaseHelper.COLUMN_TITLE)));
+                content.setType(cursor.getString(cursor.getColumnIndex(DatabaseHelper.COLUMN_TYPE)));
+                content.setDuration(cursor.getInt(cursor.getColumnIndex(DatabaseHelper.COLUMN_DURATION)));
+                content.setGenre(cursor.getString(cursor.getColumnIndex(DatabaseHelper.COLUMN_GENRE)));
+                content.setImagePath(cursor.getString(cursor.getColumnIndex(DatabaseHelper.COLUMN_IMAGE_PATH)));
+                recentContentList.add(content);
+            } while (cursor.moveToNext());
+            cursor.close();
+        }
+        
+        contentAdapter.notifyDataSetChanged();
     }
 
     private void showAddContentDialog() {
@@ -176,5 +276,11 @@ public class DashboardActivity extends AppCompatActivity {
             e.printStackTrace();
             return null;
         }
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        loadRecentContent(); // Recargar contenido al volver a la actividad
     }
 } 

@@ -14,40 +14,40 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 
     // Table names
     private static final String TABLE_USERS = "users";
-    private static final String TABLE_CONTENT = "content";
+    public static final String TABLE_CONTENT = "content";
 
     // Common column names
-    private static final String KEY_ID = "id";
-    private static final String KEY_CREATED_AT = "created_at";
+    public static final String COLUMN_ID = "id";
+    public static final String COLUMN_CREATED_AT = "created_at";
 
     // Users table columns
     private static final String KEY_EMAIL = "email";
     private static final String KEY_PASSWORD = "password";
 
     // Content table columns
-    private static final String KEY_TITLE = "title";
-    private static final String KEY_TYPE = "type";
-    private static final String KEY_DURATION = "duration";
-    private static final String KEY_GENRE = "genre";
-    private static final String KEY_IMAGE_PATH = "image_path";
+    public static final String COLUMN_TITLE = "title";
+    public static final String COLUMN_TYPE = "type";
+    public static final String COLUMN_DURATION = "duration";
+    public static final String COLUMN_GENRE = "genre";
+    public static final String COLUMN_IMAGE_PATH = "image_path";
 
     // Create table queries
     private static final String CREATE_TABLE_USERS = "CREATE TABLE " + TABLE_USERS + "("
-            + KEY_ID + " INTEGER PRIMARY KEY AUTOINCREMENT,"
+            + COLUMN_ID + " INTEGER PRIMARY KEY AUTOINCREMENT,"
             + KEY_EMAIL + " TEXT UNIQUE,"
             + KEY_PASSWORD + " TEXT,"
-            + KEY_CREATED_AT + " INTEGER"
+            + COLUMN_CREATED_AT + " INTEGER"
             + ")";
 
-    private static final String CREATE_TABLE_CONTENT = "CREATE TABLE " + TABLE_CONTENT + "("
-            + KEY_ID + " INTEGER PRIMARY KEY AUTOINCREMENT,"
-            + KEY_TITLE + " TEXT,"
-            + KEY_TYPE + " TEXT,"
-            + KEY_DURATION + " INTEGER,"
-            + KEY_GENRE + " TEXT,"
-            + KEY_IMAGE_PATH + " TEXT,"
-            + KEY_CREATED_AT + " INTEGER"
-            + ")";
+    private static final String CREATE_TABLE_CONTENT = "CREATE TABLE " + TABLE_CONTENT + " (" +
+            COLUMN_ID + " INTEGER PRIMARY KEY AUTOINCREMENT, " +
+            COLUMN_TITLE + " TEXT NOT NULL, " +
+            COLUMN_TYPE + " TEXT NOT NULL, " +
+            COLUMN_DURATION + " INTEGER, " +
+            COLUMN_GENRE + " TEXT, " +
+            COLUMN_IMAGE_PATH + " TEXT, " +
+            COLUMN_CREATED_AT + " DATETIME DEFAULT CURRENT_TIMESTAMP" +
+            ")";
 
     public DatabaseHelper(Context context) {
         super(context, DATABASE_NAME, null, DATABASE_VERSION);
@@ -72,13 +72,13 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         ContentValues values = new ContentValues();
         values.put(KEY_EMAIL, email);
         values.put(KEY_PASSWORD, password);
-        values.put(KEY_CREATED_AT, System.currentTimeMillis());
+        values.put(COLUMN_CREATED_AT, System.currentTimeMillis());
         return db.insert(TABLE_USERS, null, values);
     }
 
     public boolean checkUser(String email, String password) {
         SQLiteDatabase db = this.getReadableDatabase();
-        String[] columns = {KEY_ID};
+        String[] columns = {COLUMN_ID};
         String selection = KEY_EMAIL + "=? AND " + KEY_PASSWORD + "=?";
         String[] selectionArgs = {email, password};
         Cursor cursor = db.query(TABLE_USERS, columns, selection, selectionArgs, null, null, null);
@@ -91,29 +91,29 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     public long insertContent(Content content) {
         SQLiteDatabase db = this.getWritableDatabase();
         ContentValues values = new ContentValues();
-        values.put(KEY_TITLE, content.getTitle());
-        values.put(KEY_TYPE, content.getType());
-        values.put(KEY_DURATION, content.getDuration());
-        values.put(KEY_GENRE, content.getGenre());
-        values.put(KEY_IMAGE_PATH, content.getImagePath());
-        values.put(KEY_CREATED_AT, content.getCreatedAt());
+        values.put(COLUMN_TITLE, content.getTitle());
+        values.put(COLUMN_TYPE, content.getType());
+        values.put(COLUMN_DURATION, content.getDuration());
+        values.put(COLUMN_GENRE, content.getGenre());
+        values.put(COLUMN_IMAGE_PATH, content.getImagePath());
+        values.put(COLUMN_CREATED_AT, content.getCreatedAt());
         return db.insert(TABLE_CONTENT, null, values);
     }
 
     public Content getContent(long id) {
         SQLiteDatabase db = this.getReadableDatabase();
-        Cursor cursor = db.query(TABLE_CONTENT, null, KEY_ID + "=?",
+        Cursor cursor = db.query(TABLE_CONTENT, null, COLUMN_ID + "=?",
                 new String[]{String.valueOf(id)}, null, null, null);
 
         if (cursor != null && cursor.moveToFirst()) {
             Content content = new Content();
-            content.setId(cursor.getLong(cursor.getColumnIndex(KEY_ID)));
-            content.setTitle(cursor.getString(cursor.getColumnIndex(KEY_TITLE)));
-            content.setType(cursor.getString(cursor.getColumnIndex(KEY_TYPE)));
-            content.setDuration(cursor.getInt(cursor.getColumnIndex(KEY_DURATION)));
-            content.setGenre(cursor.getString(cursor.getColumnIndex(KEY_GENRE)));
-            content.setImagePath(cursor.getString(cursor.getColumnIndex(KEY_IMAGE_PATH)));
-            content.setCreatedAt(cursor.getLong(cursor.getColumnIndex(KEY_CREATED_AT)));
+            content.setId(cursor.getLong(cursor.getColumnIndex(COLUMN_ID)));
+            content.setTitle(cursor.getString(cursor.getColumnIndex(COLUMN_TITLE)));
+            content.setType(cursor.getString(cursor.getColumnIndex(COLUMN_TYPE)));
+            content.setDuration(cursor.getInt(cursor.getColumnIndex(COLUMN_DURATION)));
+            content.setGenre(cursor.getString(cursor.getColumnIndex(COLUMN_GENRE)));
+            content.setImagePath(cursor.getString(cursor.getColumnIndex(COLUMN_IMAGE_PATH)));
+            content.setCreatedAt(cursor.getLong(cursor.getColumnIndex(COLUMN_CREATED_AT)));
             cursor.close();
             return content;
         }
@@ -122,24 +122,41 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 
     public Cursor getAllContent() {
         SQLiteDatabase db = this.getReadableDatabase();
-        return db.query(TABLE_CONTENT, null, null, null, null, null, KEY_CREATED_AT + " DESC");
+        return db.query(TABLE_CONTENT, null, null, null, null, null, COLUMN_CREATED_AT + " DESC");
     }
 
     public int updateContent(Content content) {
         SQLiteDatabase db = this.getWritableDatabase();
         ContentValues values = new ContentValues();
-        values.put(KEY_TITLE, content.getTitle());
-        values.put(KEY_TYPE, content.getType());
-        values.put(KEY_DURATION, content.getDuration());
-        values.put(KEY_GENRE, content.getGenre());
-        values.put(KEY_IMAGE_PATH, content.getImagePath());
-        return db.update(TABLE_CONTENT, values, KEY_ID + "=?",
+        values.put(COLUMN_TITLE, content.getTitle());
+        values.put(COLUMN_TYPE, content.getType());
+        values.put(COLUMN_DURATION, content.getDuration());
+        values.put(COLUMN_GENRE, content.getGenre());
+        values.put(COLUMN_IMAGE_PATH, content.getImagePath());
+        return db.update(TABLE_CONTENT, values, COLUMN_ID + "=?",
                 new String[]{String.valueOf(content.getId())});
     }
 
     public void deleteContent(long id) {
         SQLiteDatabase db = this.getWritableDatabase();
-        db.delete(TABLE_CONTENT, KEY_ID + "=?",
+        db.delete(TABLE_CONTENT, COLUMN_ID + "=?",
                 new String[]{String.valueOf(id)});
+    }
+
+    public Cursor getRecentContent(int limit) {
+        SQLiteDatabase db = this.getReadableDatabase();
+        return db.query(TABLE_CONTENT, null, null, null, null, null, 
+                       COLUMN_CREATED_AT + " DESC", String.valueOf(limit));
+    }
+
+    public Cursor searchContent(String query) {
+        SQLiteDatabase db = this.getReadableDatabase();
+        String searchPattern = "%" + query + "%";
+        String selection = COLUMN_TITLE + " LIKE ? OR " +
+                         COLUMN_TYPE + " LIKE ? OR " +
+                         COLUMN_GENRE + " LIKE ?";
+        String[] selectionArgs = {searchPattern, searchPattern, searchPattern};
+        return db.query(TABLE_CONTENT, null, selection, selectionArgs, null, null, 
+                       COLUMN_CREATED_AT + " DESC");
     }
 } 
