@@ -1,12 +1,22 @@
 package com.example.reelreminder2;
 
+import android.database.Cursor;
 import android.os.Bundle;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.view.View;
+import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+
+import com.example.reelreminder2.adapters.ContentAdapter;
+import com.example.reelreminder2.models.Content;
+
+import java.util.ArrayList;
+import java.util.List;
 
 public class LibraryActivity extends BaseAuthenticatedActivity {
     
@@ -17,7 +27,10 @@ public class LibraryActivity extends BaseAuthenticatedActivity {
     private TextView tvFilterSeries;
     private TextView tvFilterYear;
     private TextView tvFilterGenre;
+    private EditText etSearch;
     private DatabaseHelper dbHelper;
+    private ContentAdapter adapter;
+    private List<Content> allContent;
 
     @Override
     protected int getLayoutResourceId() {
@@ -36,10 +49,29 @@ public class LibraryActivity extends BaseAuthenticatedActivity {
         tvFilterSeries = findViewById(R.id.tvFilterSeries);
         tvFilterYear = findViewById(R.id.tvFilterYear);
         tvFilterGenre = findViewById(R.id.tvFilterGenre);
+        etSearch = findViewById(R.id.etSearch);
 
         // Setup RecyclerView
         rvContent.setLayoutManager(new LinearLayoutManager(this));
-        // TODO: Set adapter
+        adapter = new ContentAdapter(new ArrayList<>(), content -> {
+            // TODO: Handle content item click
+            Toast.makeText(this, "Seleccionado: " + content.getTitle(), Toast.LENGTH_SHORT).show();
+        });
+        rvContent.setAdapter(adapter);
+
+        // Setup search
+        etSearch.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+                filterContent(s.toString());
+            }
+
+            @Override
+            public void afterTextChanged(Editable s) {}
+        });
 
         // Set click listeners
         tvFilterAll.setOnClickListener(v -> applyFilter(null, null));
@@ -53,14 +85,67 @@ public class LibraryActivity extends BaseAuthenticatedActivity {
     }
     
     private void loadContent() {
-        // TODO: Implement content loading with RecyclerView adapter
-        tvEmptyLibrary.setVisibility(View.VISIBLE);
-        rvContent.setVisibility(View.GONE);
+        allContent = new ArrayList<>();
+        // Get all content from database
+        Cursor cursor = dbHelper.getAllContent();
+        if (cursor != null && cursor.moveToFirst()) {
+            do {
+                Content content = new Content();
+                content.setId(cursor.getLong(cursor.getColumnIndex("id")));
+                content.setTitle(cursor.getString(cursor.getColumnIndex("title")));
+                content.setType(cursor.getString(cursor.getColumnIndex("type")));
+                content.setDuration(cursor.getInt(cursor.getColumnIndex("duration")));
+                content.setGenre(cursor.getString(cursor.getColumnIndex("genre")));
+                content.setImagePath(cursor.getString(cursor.getColumnIndex("image_path")));
+                content.setCreatedAt(cursor.getLong(cursor.getColumnIndex("created_at")));
+                allContent.add(content);
+            } while (cursor.moveToNext());
+            cursor.close();
+        }
+
+        // Update adapter with all content
+        adapter.updateContent(allContent);
+        updateEmptyState();
+    }
+
+    private void filterContent(String query) {
+        if (allContent == null) return;
+
+        List<Content> filteredList = new ArrayList<>();
+        for (Content content : allContent) {
+            if (content.getTitle().toLowerCase().contains(query.toLowerCase()) ||
+                content.getGenre().toLowerCase().contains(query.toLowerCase())) {
+                filteredList.add(content);
+            }
+        }
+        adapter.updateContent(filteredList);
+        updateEmptyState();
     }
     
     private void applyFilter(String type, String genre) {
-        // TODO: Implement filtering logic
-        Toast.makeText(this, "Filtro aplicado: " + (type != null ? type : "Todos"), Toast.LENGTH_SHORT).show();
+        if (allContent == null) return;
+
+        List<Content> filteredList = new ArrayList<>();
+        for (Content content : allContent) {
+            boolean matchesType = type == null || content.getType().equals(type);
+            boolean matchesGenre = genre == null || content.getGenre().equals(genre);
+            
+            if (matchesType && matchesGenre) {
+                filteredList.add(content);
+            }
+        }
+        adapter.updateContent(filteredList);
+        updateEmptyState();
+    }
+
+    private void updateEmptyState() {
+        if (adapter.getItemCount() == 0) {
+            tvEmptyLibrary.setVisibility(View.VISIBLE);
+            rvContent.setVisibility(View.GONE);
+        } else {
+            tvEmptyLibrary.setVisibility(View.GONE);
+            rvContent.setVisibility(View.VISIBLE);
+        }
     }
     
     private void showYearPicker() {

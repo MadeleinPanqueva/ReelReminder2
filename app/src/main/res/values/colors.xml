@@ -8,15 +8,17 @@
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
     
-    <!-- App theme colors (dark theme) -->
-    <color name="colorPrimary">#1F1F1F</color>
-    <color name="colorPrimaryDark">#121212</color>
-    <color name="colorAccent">#BB86FC</color>
-    <color name="colorBackground">#121212</color>
-    <color name="colorSurface">#1F1F1F</color>
-    <color name="colorOnSurface">#FFFFFF</color>
-    <color name="colorText">#FFFFFF</color>
-    <color name="colorTextSecondary">#B3FFFFFF</color> <!-- 70% white -->
+    <!-- App theme colors -->
+    <color name="colorPrimary">#FF6200EE</color>
+    <color name="colorPrimaryDark">#FF3700B3</color>
+    <color name="colorAccent">#FF03DAC5</color>
+    <color name="colorBackground">#FFF5F5F5</color>
+    <color name="colorSurface">#FFFFFFFF</color>
+    <color name="colorOnSurface">#FF000000</color>
+    <color name="colorText">#FF000000</color>
+    <color name="colorTextPrimary">#DE000000</color>
+    <color name="colorTextSecondary">#99000000</color>
+    <color name="colorGrayLight">#FFEEEEEE</color>
     <color name="colorError">#CF6679</color>
     <color name="colorSuccess">#03DAC5</color>
 </resources>
