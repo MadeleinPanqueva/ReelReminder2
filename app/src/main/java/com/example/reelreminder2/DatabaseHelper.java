@@ -6,47 +6,47 @@ import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import com.example.reelreminder2.models.Content;
 
 public class DatabaseHelper extends SQLiteOpenHelper {
-
-    private static final String DATABASE_NAME = "reelreminder.db";
+    private static final String DATABASE_NAME = "ReelReminder.db";
     private static final int DATABASE_VERSION = 1;
 
-    // Table name
-    public static final String TABLE_CONTENT = "contenido";
-    
-    // Table columns
-    public static final String COLUMN_ID = "id";
-    public static final String COLUMN_TYPE = "tipo";
-    public static final String COLUMN_TITLE = "titulo";
-    public static final String COLUMN_YEAR = "año";
-    public static final String COLUMN_GENRE = "genero";
-    public static final String COLUMN_DURATION = "duracion";
-    public static final String COLUMN_IMAGE_PATH = "imagen_ruta";
-    public static final String COLUMN_STATUS = "estado";
-    
-    // Status values
-    public static final String STATUS_IN_PROGRESS = "En progreso";
-    public static final String STATUS_WATCHED = "Visto";
-    
-    // Type values
-    public static final String TYPE_MOVIE = "Película";
-    public static final String TYPE_SERIES = "Serie";
+    // Table names
+    private static final String TABLE_USERS = "users";
+    private static final String TABLE_CONTENT = "content";
 
-    // Create table SQL query
+    // Common column names
+    private static final String KEY_ID = "id";
+    private static final String KEY_CREATED_AT = "created_at";
+
+    // Users table columns
+    private static final String KEY_EMAIL = "email";
+    private static final String KEY_PASSWORD = "password";
+
+    // Content table columns
+    private static final String KEY_TITLE = "title";
+    private static final String KEY_TYPE = "type";
+    private static final String KEY_DURATION = "duration";
+    private static final String KEY_GENRE = "genre";
+    private static final String KEY_IMAGE_PATH = "image_path";
+
+    // Create table queries
+    private static final String CREATE_TABLE_USERS = "CREATE TABLE " + TABLE_USERS + "("
+            + KEY_ID + " INTEGER PRIMARY KEY AUTOINCREMENT,"
+            + KEY_EMAIL + " TEXT UNIQUE,"
+            + KEY_PASSWORD + " TEXT,"
+            + KEY_CREATED_AT + " INTEGER"
+            + ")";
+
     private static final String CREATE_TABLE_CONTENT = "CREATE TABLE " + TABLE_CONTENT + "("
-            + COLUMN_ID + " INTEGER PRIMARY KEY AUTOINCREMENT,"
-            + COLUMN_TYPE + " TEXT,"
-            + COLUMN_TITLE + " TEXT,"
-            + COLUMN_YEAR + " TEXT,"
-            + COLUMN_GENRE + " TEXT,"
-            + COLUMN_DURATION + " TEXT,"
-            + COLUMN_IMAGE_PATH + " TEXT,"
-            + COLUMN_STATUS + " TEXT"
+            + KEY_ID + " INTEGER PRIMARY KEY AUTOINCREMENT,"
+            + KEY_TITLE + " TEXT,"
+            + KEY_TYPE + " TEXT,"
+            + KEY_DURATION + " INTEGER,"
+            + KEY_GENRE + " TEXT,"
+            + KEY_IMAGE_PATH + " TEXT,"
+            + KEY_CREATED_AT + " INTEGER"
             + ")";
 
     public DatabaseHelper(Context context) {
@@ -55,303 +55,91 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 
     @Override
     public void onCreate(SQLiteDatabase db) {
-        // Create tables
+        db.execSQL(CREATE_TABLE_USERS);
         db.execSQL(CREATE_TABLE_CONTENT);
-        
-        // Insert default user (for testing purposes)
-        // Note: In a real app, user credentials should be stored securely
-        // This is just for demonstration purposes
     }
 
     @Override
     public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
-        // Drop older table if existed
+        db.execSQL("DROP TABLE IF EXISTS " + TABLE_USERS);
         db.execSQL("DROP TABLE IF EXISTS " + TABLE_CONTENT);
-        
-        // Create tables again
         onCreate(db);
     }
-    
-    // Insert new content
-    public long insertContent(String type, String title, String year, String genre, 
-                             String duration, String imagePath, String status) {
+
+    // User related methods
+    public long createUser(String email, String password) {
         SQLiteDatabase db = this.getWritableDatabase();
-        
         ContentValues values = new ContentValues();
-        values.put(COLUMN_TYPE, type);
-        values.put(COLUMN_TITLE, title);
-        values.put(COLUMN_YEAR, year);
-        values.put(COLUMN_GENRE, genre);
-        values.put(COLUMN_DURATION, duration);
-        values.put(COLUMN_IMAGE_PATH, imagePath);
-        values.put(COLUMN_STATUS, status);
-        
-        // Insert row
-        long id = db.insert(TABLE_CONTENT, null, values);
-        
-        // Close database connection
-        db.close();
-        
-        return id;
+        values.put(KEY_EMAIL, email);
+        values.put(KEY_PASSWORD, password);
+        values.put(KEY_CREATED_AT, System.currentTimeMillis());
+        return db.insert(TABLE_USERS, null, values);
     }
-    
-    // Get all content
-    public List<Map<String, String>> getAllContent() {
-        List<Map<String, String>> contentList = new ArrayList<>();
-        
-        // Select all query
-        String selectQuery = "SELECT * FROM " + TABLE_CONTENT;
-        
+
+    public boolean checkUser(String email, String password) {
         SQLiteDatabase db = this.getReadableDatabase();
-        Cursor cursor = db.rawQuery(selectQuery, null);
-        
-        // Looping through all rows and adding to list
-        if (cursor.moveToFirst()) {
-            do {
-                Map<String, String> content = new HashMap<>();
-                content.put(COLUMN_ID, cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_ID)));
-                content.put(COLUMN_TYPE, cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_TYPE)));
-                content.put(COLUMN_TITLE, cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_TITLE)));
-                content.put(COLUMN_YEAR, cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_YEAR)));
-                content.put(COLUMN_GENRE, cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_GENRE)));
-                content.put(COLUMN_DURATION, cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_DURATION)));
-                content.put(COLUMN_IMAGE_PATH, cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_IMAGE_PATH)));
-                content.put(COLUMN_STATUS, cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_STATUS)));
-                
-                contentList.add(content);
-            } while (cursor.moveToNext());
-        }
-        
-        // Close cursor and database
+        String[] columns = {KEY_ID};
+        String selection = KEY_EMAIL + "=? AND " + KEY_PASSWORD + "=?";
+        String[] selectionArgs = {email, password};
+        Cursor cursor = db.query(TABLE_USERS, columns, selection, selectionArgs, null, null, null);
+        int count = cursor.getCount();
         cursor.close();
-        db.close();
-        
-        return contentList;
+        return count > 0;
     }
-    
-    // Get content by status
-    public List<Map<String, String>> getContentByStatus(String status) {
-        List<Map<String, String>> contentList = new ArrayList<>();
-        
-        // Select query
-        String selectQuery = "SELECT * FROM " + TABLE_CONTENT + " WHERE " + COLUMN_STATUS + " = ?";
-        
-        SQLiteDatabase db = this.getReadableDatabase();
-        Cursor cursor = db.rawQuery(selectQuery, new String[]{status});
-        
-        // Looping through all rows and adding to list
-        if (cursor.moveToFirst()) {
-            do {
-                Map<String, String> content = new HashMap<>();
-                content.put(COLUMN_ID, cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_ID)));
-                content.put(COLUMN_TYPE, cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_TYPE)));
-                content.put(COLUMN_TITLE, cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_TITLE)));
-                content.put(COLUMN_YEAR, cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_YEAR)));
-                content.put(COLUMN_GENRE, cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_GENRE)));
-                content.put(COLUMN_DURATION, cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_DURATION)));
-                content.put(COLUMN_IMAGE_PATH, cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_IMAGE_PATH)));
-                content.put(COLUMN_STATUS, cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_STATUS)));
-                
-                contentList.add(content);
-            } while (cursor.moveToNext());
-        }
-        
-        // Close cursor and database
-        cursor.close();
-        db.close();
-        
-        return contentList;
+
+    // Content related methods
+    public long insertContent(Content content) {
+        SQLiteDatabase db = this.getWritableDatabase();
+        ContentValues values = new ContentValues();
+        values.put(KEY_TITLE, content.getTitle());
+        values.put(KEY_TYPE, content.getType());
+        values.put(KEY_DURATION, content.getDuration());
+        values.put(KEY_GENRE, content.getGenre());
+        values.put(KEY_IMAGE_PATH, content.getImagePath());
+        values.put(KEY_CREATED_AT, content.getCreatedAt());
+        return db.insert(TABLE_CONTENT, null, values);
     }
-    
-    // Get content by ID
-    public Map<String, String> getContentById(long id) {
+
+    public Content getContent(long id) {
         SQLiteDatabase db = this.getReadableDatabase();
-        
-        Cursor cursor = db.query(TABLE_CONTENT, null, COLUMN_ID + " = ?",
-                new String[]{String.valueOf(id)}, null, null, null, null);
-        
-        Map<String, String> content = new HashMap<>();
-        
+        Cursor cursor = db.query(TABLE_CONTENT, null, KEY_ID + "=?",
+                new String[]{String.valueOf(id)}, null, null, null);
+
         if (cursor != null && cursor.moveToFirst()) {
-            content.put(COLUMN_ID, cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_ID)));
-            content.put(COLUMN_TYPE, cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_TYPE)));
-            content.put(COLUMN_TITLE, cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_TITLE)));
-            content.put(COLUMN_YEAR, cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_YEAR)));
-            content.put(COLUMN_GENRE, cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_GENRE)));
-            content.put(COLUMN_DURATION, cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_DURATION)));
-            content.put(COLUMN_IMAGE_PATH, cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_IMAGE_PATH)));
-            content.put(COLUMN_STATUS, cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_STATUS)));
-            
+            Content content = new Content();
+            content.setId(cursor.getLong(cursor.getColumnIndex(KEY_ID)));
+            content.setTitle(cursor.getString(cursor.getColumnIndex(KEY_TITLE)));
+            content.setType(cursor.getString(cursor.getColumnIndex(KEY_TYPE)));
+            content.setDuration(cursor.getInt(cursor.getColumnIndex(KEY_DURATION)));
+            content.setGenre(cursor.getString(cursor.getColumnIndex(KEY_GENRE)));
+            content.setImagePath(cursor.getString(cursor.getColumnIndex(KEY_IMAGE_PATH)));
+            content.setCreatedAt(cursor.getLong(cursor.getColumnIndex(KEY_CREATED_AT)));
             cursor.close();
+            return content;
         }
-        
-        db.close();
-        
-        return content;
+        return null;
     }
-    
-    // Update content status
-    public int updateContentStatus(long id, String status) {
+
+    public Cursor getAllContent() {
+        SQLiteDatabase db = this.getReadableDatabase();
+        return db.query(TABLE_CONTENT, null, null, null, null, null, KEY_CREATED_AT + " DESC");
+    }
+
+    public int updateContent(Content content) {
         SQLiteDatabase db = this.getWritableDatabase();
-        
         ContentValues values = new ContentValues();
-        values.put(COLUMN_STATUS, status);
-        
-        // Updating row
-        int result = db.update(TABLE_CONTENT, values, COLUMN_ID + " = ?",
+        values.put(KEY_TITLE, content.getTitle());
+        values.put(KEY_TYPE, content.getType());
+        values.put(KEY_DURATION, content.getDuration());
+        values.put(KEY_GENRE, content.getGenre());
+        values.put(KEY_IMAGE_PATH, content.getImagePath());
+        return db.update(TABLE_CONTENT, values, KEY_ID + "=?",
+                new String[]{String.valueOf(content.getId())});
+    }
+
+    public void deleteContent(long id) {
+        SQLiteDatabase db = this.getWritableDatabase();
+        db.delete(TABLE_CONTENT, KEY_ID + "=?",
                 new String[]{String.valueOf(id)});
-        
-        // Close database connection
-        db.close();
-        
-        return result;
-    }
-    
-    // Search content by title
-    public List<Map<String, String>> searchContent(String query) {
-        List<Map<String, String>> contentList = new ArrayList<>();
-        
-        // Select query
-        String selectQuery = "SELECT * FROM " + TABLE_CONTENT + " WHERE " + COLUMN_TITLE + " LIKE ?";
-        
-        SQLiteDatabase db = this.getReadableDatabase();
-        Cursor cursor = db.rawQuery(selectQuery, new String[]{"%" + query + "%"});
-        
-        // Looping through all rows and adding to list
-        if (cursor.moveToFirst()) {
-            do {
-                Map<String, String> content = new HashMap<>();
-                content.put(COLUMN_ID, cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_ID)));
-                content.put(COLUMN_TYPE, cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_TYPE)));
-                content.put(COLUMN_TITLE, cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_TITLE)));
-                content.put(COLUMN_YEAR, cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_YEAR)));
-                content.put(COLUMN_GENRE, cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_GENRE)));
-                content.put(COLUMN_DURATION, cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_DURATION)));
-                content.put(COLUMN_IMAGE_PATH, cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_IMAGE_PATH)));
-                content.put(COLUMN_STATUS, cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_STATUS)));
-                
-                contentList.add(content);
-            } while (cursor.moveToNext());
-        }
-        
-        // Close cursor and database
-        cursor.close();
-        db.close();
-        
-        return contentList;
-    }
-    
-    // Filter content by year, genre, and type
-    public List<Map<String, String>> filterContent(String year, String genre, String type) {
-        List<Map<String, String>> contentList = new ArrayList<>();
-        
-        StringBuilder selectQuery = new StringBuilder("SELECT * FROM " + TABLE_CONTENT + " WHERE 1=1");
-        List<String> args = new ArrayList<>();
-        
-        if (year != null && !year.isEmpty()) {
-            selectQuery.append(" AND ").append(COLUMN_YEAR).append(" = ?");
-            args.add(year);
-        }
-        
-        if (genre != null && !genre.isEmpty()) {
-            selectQuery.append(" AND ").append(COLUMN_GENRE).append(" = ?");
-            args.add(genre);
-        }
-        
-        if (type != null && !type.isEmpty()) {
-            selectQuery.append(" AND ").append(COLUMN_TYPE).append(" = ?");
-            args.add(type);
-        }
-        
-        SQLiteDatabase db = this.getReadableDatabase();
-        Cursor cursor = db.rawQuery(selectQuery.toString(), args.toArray(new String[0]));
-        
-        // Looping through all rows and adding to list
-        if (cursor.moveToFirst()) {
-            do {
-                Map<String, String> content = new HashMap<>();
-                content.put(COLUMN_ID, cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_ID)));
-                content.put(COLUMN_TYPE, cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_TYPE)));
-                content.put(COLUMN_TITLE, cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_TITLE)));
-                content.put(COLUMN_YEAR, cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_YEAR)));
-                content.put(COLUMN_GENRE, cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_GENRE)));
-                content.put(COLUMN_DURATION, cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_DURATION)));
-                content.put(COLUMN_IMAGE_PATH, cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_IMAGE_PATH)));
-                content.put(COLUMN_STATUS, cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_STATUS)));
-                
-                contentList.add(content);
-            } while (cursor.moveToNext());
-        }
-        
-        // Close cursor and database
-        cursor.close();
-        db.close();
-        
-        return contentList;
-    }
-    
-    // Get statistics for profile
-    public Map<String, Integer> getStatistics() {
-        Map<String, Integer> stats = new HashMap<>();
-        SQLiteDatabase db = this.getReadableDatabase();
-        
-        // Count movies watched
-        String movieQuery = "SELECT COUNT(*) FROM " + TABLE_CONTENT + 
-                " WHERE " + COLUMN_TYPE + " = ? AND " + COLUMN_STATUS + " = ?";
-        Cursor movieCursor = db.rawQuery(movieQuery, 
-                new String[]{TYPE_MOVIE, STATUS_WATCHED});
-        
-        if (movieCursor.moveToFirst()) {
-            stats.put("movies_watched", movieCursor.getInt(0));
-        }
-        movieCursor.close();
-        
-        // Count series watched
-        String seriesQuery = "SELECT COUNT(*) FROM " + TABLE_CONTENT + 
-                " WHERE " + COLUMN_TYPE + " = ? AND " + COLUMN_STATUS + " = ?";
-        Cursor seriesCursor = db.rawQuery(seriesQuery, 
-                new String[]{TYPE_SERIES, STATUS_WATCHED});
-        
-        if (seriesCursor.moveToFirst()) {
-            stats.put("series_watched", seriesCursor.getInt(0));
-        }
-        seriesCursor.close();
-        
-        // Get most frequent genre
-        String genreQuery = "SELECT " + COLUMN_GENRE + ", COUNT(*) as count FROM " + TABLE_CONTENT + 
-                " WHERE " + COLUMN_STATUS + " = ? GROUP BY " + COLUMN_GENRE + 
-                " ORDER BY count DESC LIMIT 1";
-        Cursor genreCursor = db.rawQuery(genreQuery, new String[]{STATUS_WATCHED});
-        
-        if (genreCursor.moveToFirst()) {
-            String mostFrequentGenre = genreCursor.getString(0);
-            int genreCount = genreCursor.getInt(1);
-            stats.put("genre_count", genreCount);
-            // We can't put a String in the Map<String, Integer>, so we'll handle this separately
-        }
-        genreCursor.close();
-        
-        db.close();
-        
-        return stats;
-    }
-    
-    // Get most frequent genre
-    public String getMostFrequentGenre() {
-        SQLiteDatabase db = this.getReadableDatabase();
-        String genre = "";
-        
-        String genreQuery = "SELECT " + COLUMN_GENRE + " FROM " + TABLE_CONTENT + 
-                " WHERE " + COLUMN_STATUS + " = ? GROUP BY " + COLUMN_GENRE + 
-                " ORDER BY COUNT(*) DESC LIMIT 1";
-        Cursor genreCursor = db.rawQuery(genreQuery, new String[]{STATUS_WATCHED});
-        
-        if (genreCursor.moveToFirst()) {
-            genre = genreCursor.getString(0);
-        }
-        genreCursor.close();
-        db.close();
-        
-        return genre;
     }
 } 

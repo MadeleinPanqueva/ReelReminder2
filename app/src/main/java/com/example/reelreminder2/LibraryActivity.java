@@ -1,8 +1,11 @@
 package com.example.reelreminder2;
 
+import android.os.Bundle;
 import android.view.View;
 import android.widget.TextView;
+import android.widget.Toast;
 
+import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 public class LibraryActivity extends BaseAuthenticatedActivity {
@@ -14,7 +17,7 @@ public class LibraryActivity extends BaseAuthenticatedActivity {
     private TextView tvFilterSeries;
     private TextView tvFilterYear;
     private TextView tvFilterGenre;
-    private DatabaseHelper databaseHelper;
+    private DatabaseHelper dbHelper;
 
     @Override
     protected int getLayoutResourceId() {
@@ -23,8 +26,7 @@ public class LibraryActivity extends BaseAuthenticatedActivity {
 
     @Override
     protected void initializeViews() {
-        // Initialize database helper
-        databaseHelper = new DatabaseHelper(this);
+        dbHelper = new DatabaseHelper(this);
         
         // Initialize views
         rvContent = findViewById(R.id.rvContent);
@@ -34,34 +36,40 @@ public class LibraryActivity extends BaseAuthenticatedActivity {
         tvFilterSeries = findViewById(R.id.tvFilterSeries);
         tvFilterYear = findViewById(R.id.tvFilterYear);
         tvFilterGenre = findViewById(R.id.tvFilterGenre);
-        
-        // Set click listeners for filters
+
+        // Setup RecyclerView
+        rvContent.setLayoutManager(new LinearLayoutManager(this));
+        // TODO: Set adapter
+
+        // Set click listeners
         tvFilterAll.setOnClickListener(v -> applyFilter(null, null));
-        tvFilterMovies.setOnClickListener(v -> applyFilter(DatabaseHelper.TYPE_MOVIE, null));
-        tvFilterSeries.setOnClickListener(v -> applyFilter(DatabaseHelper.TYPE_SERIES, null));
+        tvFilterMovies.setOnClickListener(v -> applyFilter("Película", null));
+        tvFilterSeries.setOnClickListener(v -> applyFilter("Serie", null));
         tvFilterYear.setOnClickListener(v -> showYearPicker());
         tvFilterGenre.setOnClickListener(v -> showGenrePicker());
-        
+
         // Load initial content
         loadContent();
     }
     
     private void loadContent() {
         // TODO: Implement content loading with RecyclerView adapter
-        // For now, just show empty state
         tvEmptyLibrary.setVisibility(View.VISIBLE);
         rvContent.setVisibility(View.GONE);
     }
     
     private void applyFilter(String type, String genre) {
-        // TODO: Implement filtering
+        // TODO: Implement filtering logic
+        Toast.makeText(this, "Filtro aplicado: " + (type != null ? type : "Todos"), Toast.LENGTH_SHORT).show();
     }
     
     private void showYearPicker() {
         // TODO: Implement year picker dialog
+        Toast.makeText(this, "Seleccionar año", Toast.LENGTH_SHORT).show();
     }
     
     private void showGenrePicker() {
         // TODO: Implement genre picker dialog
+        Toast.makeText(this, "Seleccionar género", Toast.LENGTH_SHORT).show();
     }
 } 
