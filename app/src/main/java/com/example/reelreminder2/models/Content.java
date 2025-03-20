@@ -7,6 +7,7 @@ public class Content {
     private int duration;
     private String genre;
     private String imagePath;
+    private int year;
     private long createdAt;
 
     public Content() {
@@ -60,6 +61,14 @@ public class Content {
 
     public void setImagePath(String imagePath) {
         this.imagePath = imagePath;
+    }
+
+    public int getYear() {
+        return year;
+    }
+
+    public void setYear(int year) {
+        this.year = year;
     }
 
     public long getCreatedAt() {

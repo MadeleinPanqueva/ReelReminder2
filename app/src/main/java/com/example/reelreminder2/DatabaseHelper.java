@@ -10,7 +10,7 @@ import com.example.reelreminder2.models.Content;
 
 public class DatabaseHelper extends SQLiteOpenHelper {
     private static final String DATABASE_NAME = "ReelReminder.db";
-    private static final int DATABASE_VERSION = 1;
+    private static final int DATABASE_VERSION = 2;
 
     // Table names
     private static final String TABLE_USERS = "users";
@@ -30,6 +30,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     public static final String COLUMN_DURATION = "duration";
     public static final String COLUMN_GENRE = "genre";
     public static final String COLUMN_IMAGE_PATH = "image_path";
+    public static final String COLUMN_YEAR = "year";
 
     // Create table queries
     private static final String CREATE_TABLE_USERS = "CREATE TABLE " + TABLE_USERS + "("
@@ -46,6 +47,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
             COLUMN_DURATION + " INTEGER, " +
             COLUMN_GENRE + " TEXT, " +
             COLUMN_IMAGE_PATH + " TEXT, " +
+            COLUMN_YEAR + " INTEGER, " +
             COLUMN_CREATED_AT + " DATETIME DEFAULT CURRENT_TIMESTAMP" +
             ")";
 
@@ -61,6 +63,10 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 
     @Override
     public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
+        if (oldVersion < 2) {
+            db.execSQL("ALTER TABLE " + TABLE_CONTENT + 
+                      " ADD COLUMN " + COLUMN_YEAR + " INTEGER");
+        }
         db.execSQL("DROP TABLE IF EXISTS " + TABLE_USERS);
         db.execSQL("DROP TABLE IF EXISTS " + TABLE_CONTENT);
         onCreate(db);
@@ -96,6 +102,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         values.put(COLUMN_DURATION, content.getDuration());
         values.put(COLUMN_GENRE, content.getGenre());
         values.put(COLUMN_IMAGE_PATH, content.getImagePath());
+        values.put(COLUMN_YEAR, content.getYear());
         values.put(COLUMN_CREATED_AT, content.getCreatedAt());
         return db.insert(TABLE_CONTENT, null, values);
     }
@@ -113,6 +120,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
             content.setDuration(cursor.getInt(cursor.getColumnIndex(COLUMN_DURATION)));
             content.setGenre(cursor.getString(cursor.getColumnIndex(COLUMN_GENRE)));
             content.setImagePath(cursor.getString(cursor.getColumnIndex(COLUMN_IMAGE_PATH)));
+            content.setYear(cursor.getInt(cursor.getColumnIndex(COLUMN_YEAR)));
             content.setCreatedAt(cursor.getLong(cursor.getColumnIndex(COLUMN_CREATED_AT)));
             cursor.close();
             return content;
@@ -133,6 +141,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         values.put(COLUMN_DURATION, content.getDuration());
         values.put(COLUMN_GENRE, content.getGenre());
         values.put(COLUMN_IMAGE_PATH, content.getImagePath());
+        values.put(COLUMN_YEAR, content.getYear());
         return db.update(TABLE_CONTENT, values, COLUMN_ID + "=?",
                 new String[]{String.valueOf(content.getId())});
     }

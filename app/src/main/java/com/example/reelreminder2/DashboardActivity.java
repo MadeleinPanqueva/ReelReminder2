@@ -34,6 +34,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Calendar;
 import java.util.List;
 
 public class DashboardActivity extends AppCompatActivity {
@@ -190,6 +191,7 @@ public class DashboardActivity extends AppCompatActivity {
         TextInputEditText etTitle = dialogView.findViewById(R.id.etTitle);
         AutoCompleteTextView actvType = dialogView.findViewById(R.id.actvType);
         TextInputEditText etDuration = dialogView.findViewById(R.id.etDuration);
+        TextInputEditText etYear = dialogView.findViewById(R.id.etYear);
         TextInputEditText etGenre = dialogView.findViewById(R.id.etGenre);
         ImageView ivContentImage = dialogView.findViewById(R.id.ivContentImage);
         View btnSelectImage = dialogView.findViewById(R.id.btnSelectImage);
@@ -212,16 +214,24 @@ public class DashboardActivity extends AppCompatActivity {
                     String title = etTitle.getText().toString();
                     String type = actvType.getText().toString();
                     String durationStr = etDuration.getText().toString();
+                    String yearStr = etYear.getText().toString();
                     String genre = etGenre.getText().toString();
 
-                    if (title.isEmpty() || type.isEmpty() || durationStr.isEmpty() || genre.isEmpty()) {
+                    if (title.isEmpty() || type.isEmpty() || durationStr.isEmpty() || 
+                        yearStr.isEmpty() || genre.isEmpty()) {
                         Toast.makeText(this, "Por favor complete todos los campos", Toast.LENGTH_SHORT).show();
                         return;
                     }
 
                     int duration = Integer.parseInt(durationStr);
-                    String imagePath = null;
+                    int year = Integer.parseInt(yearStr);
+                    
+                    if (year < 1888 || year > Calendar.getInstance().get(Calendar.YEAR)) {
+                        Toast.makeText(this, "Por favor ingrese un año válido", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
 
+                    String imagePath = null;
                     if (selectedImageUri != null) {
                         imagePath = saveImageToInternalStorage(selectedImageUri);
                     }
@@ -231,12 +241,14 @@ public class DashboardActivity extends AppCompatActivity {
                     content.setTitle(title);
                     content.setType(type);
                     content.setDuration(duration);
+                    content.setYear(year);
                     content.setGenre(genre);
                     content.setImagePath(imagePath);
 
                     long id = dbHelper.insertContent(content);
                     if (id != -1) {
                         Toast.makeText(this, "Contenido agregado exitosamente", Toast.LENGTH_SHORT).show();
+                        loadRecentContent(); // Recargar la lista
                     } else {
                         Toast.makeText(this, "Error al agregar el contenido", Toast.LENGTH_SHORT).show();
                     }
