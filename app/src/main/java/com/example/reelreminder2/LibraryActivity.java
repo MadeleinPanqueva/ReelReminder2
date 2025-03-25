@@ -53,10 +53,14 @@ public class LibraryActivity extends BaseAuthenticatedActivity {
 
         // Setup RecyclerView
         rvContent.setLayoutManager(new LinearLayoutManager(this));
-        adapter = new ContentAdapter(new ArrayList<>(), content -> {
-            // TODO: Handle content item click
-            Toast.makeText(this, "Seleccionado: " + content.getTitle(), Toast.LENGTH_SHORT).show();
-        });
+        adapter = new ContentAdapter(
+            new ArrayList<>(), 
+            content -> {
+                // TODO: Handle content item click
+                Toast.makeText(this, "Seleccionado: " + content.getTitle(), Toast.LENGTH_SHORT).show();
+            },
+            dbHelper
+        );
         rvContent.setAdapter(adapter);
 
         // Setup search
@@ -86,24 +90,32 @@ public class LibraryActivity extends BaseAuthenticatedActivity {
     
     private void loadContent() {
         allContent = new ArrayList<>();
-        // Get all content from database
         Cursor cursor = dbHelper.getAllContent();
+        
         if (cursor != null && cursor.moveToFirst()) {
             do {
                 Content content = new Content();
-                content.setId(cursor.getLong(cursor.getColumnIndex("id")));
-                content.setTitle(cursor.getString(cursor.getColumnIndex("title")));
-                content.setType(cursor.getString(cursor.getColumnIndex("type")));
-                content.setDuration(cursor.getInt(cursor.getColumnIndex("duration")));
-                content.setGenre(cursor.getString(cursor.getColumnIndex("genre")));
-                content.setImagePath(cursor.getString(cursor.getColumnIndex("image_path")));
-                content.setCreatedAt(cursor.getLong(cursor.getColumnIndex("created_at")));
+                content.setId(cursor.getLong(cursor.getColumnIndex(DatabaseHelper.COLUMN_ID)));
+                content.setTitle(cursor.getString(cursor.getColumnIndex(DatabaseHelper.COLUMN_TITLE)));
+                content.setType(cursor.getString(cursor.getColumnIndex(DatabaseHelper.COLUMN_TYPE)));
+                content.setDuration(cursor.getInt(cursor.getColumnIndex(DatabaseHelper.COLUMN_DURATION)));
+                content.setGenre(cursor.getString(cursor.getColumnIndex(DatabaseHelper.COLUMN_GENRE)));
+                content.setImagePath(cursor.getString(cursor.getColumnIndex(DatabaseHelper.COLUMN_IMAGE_PATH)));
+                content.setYear(cursor.getInt(cursor.getColumnIndex(DatabaseHelper.COLUMN_YEAR)));
+                content.setWatched(cursor.getInt(cursor.getColumnIndex(DatabaseHelper.COLUMN_WATCHED)) == 1);
+                content.setCreatedAt(cursor.getLong(cursor.getColumnIndex(DatabaseHelper.COLUMN_CREATED_AT)));
                 allContent.add(content);
             } while (cursor.moveToNext());
             cursor.close();
         }
 
-        // Update adapter with all content
+        // Si no hay contenido, insertar datos de ejemplo
+        if (allContent.isEmpty()) {
+            dbHelper.insertSampleContent();
+            loadContent(); // Recargar después de insertar
+            return;
+        }
+
         adapter.updateContent(allContent);
         updateEmptyState();
     }
@@ -156,5 +168,19 @@ public class LibraryActivity extends BaseAuthenticatedActivity {
     private void showGenrePicker() {
         // TODO: Implement genre picker dialog
         Toast.makeText(this, "Seleccionar género", Toast.LENGTH_SHORT).show();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        loadContent(); // Recargar contenido al volver a la actividad
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (dbHelper != null) {
+            dbHelper.close();
+        }
     }
 } 

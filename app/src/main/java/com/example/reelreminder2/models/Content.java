@@ -9,6 +9,7 @@ public class Content {
     private String imagePath;
     private int year;
     private long createdAt;
+    private boolean watched;
 
     public Content() {
         this.createdAt = System.currentTimeMillis();
@@ -77,5 +78,13 @@ public class Content {
 
     public void setCreatedAt(long createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public boolean isWatched() {
+        return watched;
+    }
+
+    public void setWatched(boolean watched) {
+        this.watched = watched;
     }
 } 

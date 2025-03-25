@@ -20,7 +20,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="center"
-            android:text="Seguimiento"
+            android:text="Vistos"
             android:textColor="@color/colorAccent"
             android:textSize="20sp"
             android:textStyle="bold" />
@@ -43,7 +43,7 @@
         android:id="@+id/tvEmptyDetails"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="No tienes contenido en progreso"
+        android:text="No tienes contenido visto"
         android:textColor="@color/colorTextSecondary"
         android:textSize="16sp"
         android:visibility="gone"

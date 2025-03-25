@@ -90,6 +90,9 @@ public class DashboardActivity extends AppCompatActivity {
         fabAddContent = findViewById(R.id.fabAdd);
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
+        if (getSupportActionBar() != null) {
+            getSupportActionBar().setDisplayShowTitleEnabled(false);
+        }
         searchView = findViewById(R.id.searchView);
         rvRecentContent = findViewById(R.id.rvRecentContent);
         
@@ -101,12 +104,16 @@ public class DashboardActivity extends AppCompatActivity {
 
         // Configurar RecyclerView
         recentContentList = new ArrayList<>();
-        contentAdapter = new ContentAdapter(recentContentList, content -> {
-            // Implementar click en contenido
-            Intent intent = new Intent(DashboardActivity.this, ContentDetailActivity.class);
-            intent.putExtra("content_id", content.getId());
-            startActivity(intent);
-        });
+        contentAdapter = new ContentAdapter(
+            recentContentList, 
+            content -> {
+                // Implementar click en contenido
+                Intent intent = new Intent(DashboardActivity.this, ContentDetailActivity.class);
+                intent.putExtra("content_id", content.getId());
+                startActivity(intent);
+            },
+            dbHelper
+        );
 
         rvRecentContent.setLayoutManager(new LinearLayoutManager(this));
         rvRecentContent.setAdapter(contentAdapter);
@@ -143,7 +150,7 @@ public class DashboardActivity extends AppCompatActivity {
 
     private void loadRecentContent() {
         recentContentList.clear();
-        Cursor cursor = dbHelper.getRecentContent(5); // Obtener los últimos 5 contenidos
+        Cursor cursor = dbHelper.getRecentContent(5);
         
         if (cursor != null && cursor.moveToFirst()) {
             do {
@@ -154,6 +161,8 @@ public class DashboardActivity extends AppCompatActivity {
                 content.setDuration(cursor.getInt(cursor.getColumnIndex(DatabaseHelper.COLUMN_DURATION)));
                 content.setGenre(cursor.getString(cursor.getColumnIndex(DatabaseHelper.COLUMN_GENRE)));
                 content.setImagePath(cursor.getString(cursor.getColumnIndex(DatabaseHelper.COLUMN_IMAGE_PATH)));
+                content.setYear(cursor.getInt(cursor.getColumnIndex(DatabaseHelper.COLUMN_YEAR)));
+                content.setWatched(cursor.getInt(cursor.getColumnIndex(DatabaseHelper.COLUMN_WATCHED)) == 1);
                 recentContentList.add(content);
             } while (cursor.moveToNext());
             cursor.close();
@@ -175,6 +184,8 @@ public class DashboardActivity extends AppCompatActivity {
                 content.setDuration(cursor.getInt(cursor.getColumnIndex(DatabaseHelper.COLUMN_DURATION)));
                 content.setGenre(cursor.getString(cursor.getColumnIndex(DatabaseHelper.COLUMN_GENRE)));
                 content.setImagePath(cursor.getString(cursor.getColumnIndex(DatabaseHelper.COLUMN_IMAGE_PATH)));
+                content.setYear(cursor.getInt(cursor.getColumnIndex(DatabaseHelper.COLUMN_YEAR)));
+                content.setWatched(cursor.getInt(cursor.getColumnIndex(DatabaseHelper.COLUMN_WATCHED)) == 1);
                 recentContentList.add(content);
             } while (cursor.moveToNext());
             cursor.close();
@@ -294,5 +305,13 @@ public class DashboardActivity extends AppCompatActivity {
     protected void onResume() {
         super.onResume();
         loadRecentContent(); // Recargar contenido al volver a la actividad
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (dbHelper != null) {
+            dbHelper.close();
+        }
     }
 } 
