@@ -5,7 +5,10 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.ImageView;
+import android.widget.ImageButton;
 import android.widget.TextView;
+import android.app.AlertDialog;
+import android.content.Context;
 
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
@@ -70,14 +73,30 @@ public class ContentAdapter extends RecyclerView.Adapter<ContentAdapter.ContentV
         holder.btnDelete.setOnClickListener(v -> {
             int currentPosition = holder.getAdapterPosition();
             if (currentPosition != RecyclerView.NO_POSITION) {
-                Content contentToDelete = contentList.get(currentPosition);
-                dbHelper.deleteContent(contentToDelete.getId());
-                contentList.remove(currentPosition);
-                notifyItemRemoved(currentPosition);
+                showDeleteConfirmationDialog(
+                    holder.itemView.getContext(),
+                    content,
+                    currentPosition
+                );
             }
         });
 
         holder.itemView.setOnClickListener(v -> listener.onItemClick(content));
+    }
+
+    private void showDeleteConfirmationDialog(Context context, Content content, int position) {
+        new AlertDialog.Builder(context)
+            .setTitle("Confirmar eliminación")
+            .setMessage("¿Estás seguro que deseas eliminar \"" + content.getTitle() + "\"?")
+            .setPositiveButton("Eliminar", (dialog, which) -> {
+                // Eliminar el contenido
+                dbHelper.deleteContent(content.getId());
+                contentList.remove(position);
+                notifyItemRemoved(position);
+            })
+            .setNegativeButton("Cancelar", null)
+            .setIcon(android.R.drawable.ic_dialog_alert)
+            .show();
     }
 
     @Override
@@ -98,7 +117,7 @@ public class ContentAdapter extends RecyclerView.Adapter<ContentAdapter.ContentV
         TextView tvYear;
         ImageView ivContentImage;
         Button btnWatched;
-        Button btnDelete;
+        ImageButton btnDelete;
 
         ContentViewHolder(View itemView) {
             super(itemView);
