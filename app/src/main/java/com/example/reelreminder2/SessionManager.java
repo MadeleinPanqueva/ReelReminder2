@@ -1,6 +1,7 @@
 package com.example.reelreminder2;
 
 import android.content.Context;
+import android.content.Intent;
 import android.content.SharedPreferences;
 
 public class SessionManager {
@@ -11,6 +12,7 @@ public class SessionManager {
     private static final String KEY_IS_LOGGED_IN = "isLoggedIn";
     private static final String KEY_EMAIL = "email";
     private static final String KEY_NAME = "name";
+    private static final String KEY_PROFILE_IMAGE = "profile_image";
     
     // Default values
     private static final String DEFAULT_EMAIL = "user@reelreminder.com";
@@ -61,7 +63,8 @@ public class SessionManager {
      * @return user data
      */
     public String getUserEmail() {
-        return pref.getString(KEY_EMAIL, "");
+        // Usar el mismo pref que se inicializa en el constructor
+        return pref.getString(KEY_EMAIL, DEFAULT_EMAIL);
     }
     
     /**
@@ -85,9 +88,16 @@ public class SessionManager {
      * Clear session details
      */
     public void logoutUser() {
-        // Clear all data from Shared Preferences
+        // Limpiar todas las preferencias relacionadas con la sesión
         editor.clear();
-        editor.commit();
+        editor.commit(); // Usar commit en lugar de apply para asegurar que se complete inmediatamente
+        
+        // Redirigir al usuario a la pantalla de inicio de sesión
+        Intent intent = new Intent(context, LoginActivity.class);
+        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+        intent.addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION); // Evitar transiciones
+        context.startActivity(intent);
     }
     
     /**
@@ -100,5 +110,22 @@ public class SessionManager {
         // For demo purposes, we'll use hardcoded credentials
         // In a real app, this would check against a secure database
         return email.equals(DEFAULT_EMAIL) && password.equals(DEFAULT_PASSWORD);
+    }
+    
+    /**
+     * Guardar la URI de la imagen de perfil
+     * @param imageUri URI de la imagen
+     */
+    public void saveProfileImageUri(String imageUri) {
+        editor.putString(KEY_PROFILE_IMAGE, imageUri);
+        editor.commit();
+    }
+    
+    /**
+     * Obtener la URI de la imagen de perfil
+     * @return URI de la imagen o null si no hay
+     */
+    public String getProfileImageUri() {
+        return pref.getString(KEY_PROFILE_IMAGE, null);
     }
 } 

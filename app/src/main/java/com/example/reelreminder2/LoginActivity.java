@@ -40,6 +40,17 @@ public class LoginActivity extends AppCompatActivity {
         btnLogin.setOnClickListener(v -> attemptLogin());
     }
     
+    @Override
+    protected void onResume() {
+        super.onResume();
+        
+        // Comprobar nuevamente si el usuario ha iniciado sesión cada vez que la actividad se reanuda
+        if (sessionManager.isLoggedIn()) {
+            startActivity(new Intent(LoginActivity.this, DashboardActivity.class));
+            finish();
+        }
+    }
+    
     private void attemptLogin() {
         String email = etEmail.getText() != null ? etEmail.getText().toString() : "";
         String password = etPassword.getText() != null ? etPassword.getText().toString() : "";
