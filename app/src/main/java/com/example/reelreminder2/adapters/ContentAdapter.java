@@ -7,7 +7,10 @@ import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.ImageButton;
+import android.widget.ImageButton;
 import android.widget.TextView;
+import android.app.AlertDialog;
+import android.content.Context;
 import android.app.AlertDialog;
 import android.content.Context;
 
@@ -95,6 +98,11 @@ public class ContentAdapter extends RecyclerView.Adapter<ContentAdapter.ContentV
         holder.btnDelete.setOnClickListener(v -> {
             int currentPosition = holder.getAdapterPosition();
             if (currentPosition != RecyclerView.NO_POSITION) {
+                showDeleteConfirmationDialog(
+                    holder.itemView.getContext(),
+                    content,
+                    currentPosition
+                );
                 showDeleteConfirmationDialog(
                     holder.itemView.getContext(),
                     content,
