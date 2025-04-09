@@ -1,7 +1,8 @@
 package com.example.reelreminder2;
 
+import android.Manifest;
 import android.content.Intent;
-import android.database.Cursor;
+import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.MediaStore;
@@ -9,6 +10,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.ArrayAdapter;
 import android.widget.AutoCompleteTextView;
+import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.Toast;
@@ -19,7 +21,9 @@ import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.SearchView;
 import androidx.appcompat.widget.Toolbar;
-import androidx.cardview.widget.CardView;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
+import androidx.core.content.FileProvider;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -27,6 +31,7 @@ import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.android.material.textfield.TextInputEditText;
 import com.example.reelreminder2.adapters.ContentAdapter;
 import com.example.reelreminder2.models.Content;
+import com.example.reelreminder2.fragments.ContentDetailBottomSheet;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -37,33 +42,57 @@ import java.util.Arrays;
 import java.util.Calendar;
 import java.util.List;
 
-public class DashboardActivity extends AppCompatActivity {
+public class DashboardActivity extends AppCompatActivity implements ContentDetailBottomSheet.OnContentActionListener {
     
     private ImageView ivProfile;
     private LinearLayout libraryButton;
     private LinearLayout detailsButton;
     private FloatingActionButton fabAddContent;
     private SessionManager sessionManager;
-    private DatabaseHelper dbHelper;
     private Uri selectedImageUri;
     private static final String[] CONTENT_TYPES = {"Película", "Serie", "Anime", "Documental"};
     private RecyclerView rvRecentContent;
     private ContentAdapter contentAdapter;
     private SearchView searchView;
     private List<Content> recentContentList;
+    private static List<Content> allContent = new ArrayList<>();
+    private File photoFile;
+    private ImageView currentImageView;
+    private static final int PERMISSION_REQUEST_CODE = 123;
+
+    public static List<Content> getAllContent() {
+        return allContent;
+    }
 
     private final ActivityResultLauncher<Intent> imagePickerLauncher = registerForActivityResult(
             new ActivityResultContracts.StartActivityForResult(),
             result -> {
                 if (result.getResultCode() == RESULT_OK && result.getData() != null) {
                     selectedImageUri = result.getData().getData();
-                    if (selectedImageUri != null) {
-                        // Update the ImageView in the dialog
-                        ImageView ivContentImage = findViewById(R.id.ivContentImage);
-                        if (ivContentImage != null) {
-                            ivContentImage.setImageURI(selectedImageUri);
-                        }
+                    if (selectedImageUri != null && currentImageView != null) {
+                        currentImageView.setImageURI(selectedImageUri);
                     }
+                }
+            });
+
+    private final ActivityResultLauncher<Intent> cameraLauncher = registerForActivityResult(
+            new ActivityResultContracts.StartActivityForResult(),
+            result -> {
+                if (result.getResultCode() == RESULT_OK && photoFile != null) {
+                    selectedImageUri = Uri.fromFile(photoFile);
+                    if (currentImageView != null) {
+                        currentImageView.setImageURI(selectedImageUri);
+                    }
+                }
+            });
+
+    private final ActivityResultLauncher<String> requestPermissionLauncher = registerForActivityResult(
+            new ActivityResultContracts.RequestPermission(),
+            isGranted -> {
+                if (isGranted) {
+                    showImageSourceDialog(currentImageView);
+                } else {
+                    Toast.makeText(this, "Se requiere permiso para acceder a la cámara/galería", Toast.LENGTH_SHORT).show();
                 }
             });
 
@@ -72,9 +101,8 @@ public class DashboardActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_dashboard);
         
-        // Initialize SessionManager and DatabaseHelper
+        // Initialize SessionManager
         sessionManager = new SessionManager(this);
-        dbHelper = new DatabaseHelper(this);
         
         // Check if user is logged in, if not, redirect to login
         if (!sessionManager.isLoggedIn()) {
@@ -107,12 +135,11 @@ public class DashboardActivity extends AppCompatActivity {
         contentAdapter = new ContentAdapter(
             recentContentList, 
             content -> {
-                // Implementar click en contenido
-                Intent intent = new Intent(DashboardActivity.this, ContentDetailActivity.class);
-                intent.putExtra("content_id", content.getId());
-                startActivity(intent);
-            },
-            dbHelper
+                ContentDetailBottomSheet bottomSheet = ContentDetailBottomSheet.newInstance(content);
+                bottomSheet.setContent(content);
+                bottomSheet.setOnContentActionListener(this);
+                bottomSheet.show(getSupportFragmentManager(), "content_detail");
+            }
         );
 
         rvRecentContent.setLayoutManager(new LinearLayoutManager(this));
@@ -139,58 +166,25 @@ public class DashboardActivity extends AppCompatActivity {
                 return true;
             }
         });
-
-        // Configurar clicks
-        libraryButton.setOnClickListener(v -> 
-            startActivity(new Intent(DashboardActivity.this, LibraryActivity.class)));
-
-        detailsButton.setOnClickListener(v -> 
-            startActivity(new Intent(DashboardActivity.this, DetailsActivity.class)));
     }
 
     private void loadRecentContent() {
         recentContentList.clear();
-        Cursor cursor = dbHelper.getRecentContent(5);
-        
-        if (cursor != null && cursor.moveToFirst()) {
-            do {
-                Content content = new Content();
-                content.setId(cursor.getInt(cursor.getColumnIndex(DatabaseHelper.COLUMN_ID)));
-                content.setTitle(cursor.getString(cursor.getColumnIndex(DatabaseHelper.COLUMN_TITLE)));
-                content.setType(cursor.getString(cursor.getColumnIndex(DatabaseHelper.COLUMN_TYPE)));
-                content.setDuration(cursor.getInt(cursor.getColumnIndex(DatabaseHelper.COLUMN_DURATION)));
-                content.setGenre(cursor.getString(cursor.getColumnIndex(DatabaseHelper.COLUMN_GENRE)));
-                content.setImagePath(cursor.getString(cursor.getColumnIndex(DatabaseHelper.COLUMN_IMAGE_PATH)));
-                content.setYear(cursor.getInt(cursor.getColumnIndex(DatabaseHelper.COLUMN_YEAR)));
-                content.setWatched(cursor.getInt(cursor.getColumnIndex(DatabaseHelper.COLUMN_WATCHED)) == 1);
-                recentContentList.add(content);
-            } while (cursor.moveToNext());
-            cursor.close();
-        }
-        
+        // Get the 5 most recent items from allContent
+        int startIndex = Math.max(0, allContent.size() - 5);
+        recentContentList.addAll(allContent.subList(startIndex, allContent.size()));
         contentAdapter.notifyDataSetChanged();
     }
 
     private void searchContent(String query) {
         recentContentList.clear();
-        Cursor cursor = dbHelper.searchContent(query);
-        
-        if (cursor != null && cursor.moveToFirst()) {
-            do {
-                Content content = new Content();
-                content.setId(cursor.getInt(cursor.getColumnIndex(DatabaseHelper.COLUMN_ID)));
-                content.setTitle(cursor.getString(cursor.getColumnIndex(DatabaseHelper.COLUMN_TITLE)));
-                content.setType(cursor.getString(cursor.getColumnIndex(DatabaseHelper.COLUMN_TYPE)));
-                content.setDuration(cursor.getInt(cursor.getColumnIndex(DatabaseHelper.COLUMN_DURATION)));
-                content.setGenre(cursor.getString(cursor.getColumnIndex(DatabaseHelper.COLUMN_GENRE)));
-                content.setImagePath(cursor.getString(cursor.getColumnIndex(DatabaseHelper.COLUMN_IMAGE_PATH)));
-                content.setYear(cursor.getInt(cursor.getColumnIndex(DatabaseHelper.COLUMN_YEAR)));
-                content.setWatched(cursor.getInt(cursor.getColumnIndex(DatabaseHelper.COLUMN_WATCHED)) == 1);
+        String lowercaseQuery = query.toLowerCase();
+        for (Content content : allContent) {
+            if (content.getTitle().toLowerCase().contains(lowercaseQuery) ||
+                content.getGenre().toLowerCase().contains(lowercaseQuery)) {
                 recentContentList.add(content);
-            } while (cursor.moveToNext());
-            cursor.close();
+            }
         }
-        
         contentAdapter.notifyDataSetChanged();
     }
 
@@ -200,91 +194,145 @@ public class DashboardActivity extends AppCompatActivity {
         
         // Initialize dialog views
         TextInputEditText etTitle = dialogView.findViewById(R.id.etTitle);
-        AutoCompleteTextView actvType = dialogView.findViewById(R.id.actvType);
         TextInputEditText etDuration = dialogView.findViewById(R.id.etDuration);
-        TextInputEditText etYear = dialogView.findViewById(R.id.etYear);
         TextInputEditText etGenre = dialogView.findViewById(R.id.etGenre);
+        TextInputEditText etYear = dialogView.findViewById(R.id.etYear);
+        AutoCompleteTextView actvType = dialogView.findViewById(R.id.actvType);
         ImageView ivContentImage = dialogView.findViewById(R.id.ivContentImage);
-        View btnSelectImage = dialogView.findViewById(R.id.btnSelectImage);
+        Button btnSelectImage = dialogView.findViewById(R.id.btnSelectImage);
 
         // Setup content type dropdown
-        ArrayAdapter<String> adapter = new ArrayAdapter<>(this, 
-            android.R.layout.simple_dropdown_item_1line, 
-            Arrays.asList(CONTENT_TYPES));
-        actvType.setAdapter(adapter);
+        ArrayAdapter<String> typeAdapter = new ArrayAdapter<>(this, 
+            android.R.layout.simple_dropdown_item_1line, CONTENT_TYPES);
+        actvType.setAdapter(typeAdapter);
 
-        // Setup image selection
-        btnSelectImage.setOnClickListener(v -> {
-            Intent intent = new Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
-            imagePickerLauncher.launch(intent);
-        });
+        // Setup image picker for both the ImageView and the Button
+        View.OnClickListener imagePickerListener = v -> {
+            currentImageView = ivContentImage;
+            checkAndRequestPermissions();
+        };
+        
+        ivContentImage.setOnClickListener(imagePickerListener);
+        btnSelectImage.setOnClickListener(imagePickerListener);
 
         builder.setView(dialogView)
-                .setTitle("Agregar nuevo contenido")
-                .setPositiveButton("Guardar", (dialog, which) -> {
-                    String title = etTitle.getText().toString();
-                    String type = actvType.getText().toString();
-                    String durationStr = etDuration.getText().toString();
-                    String yearStr = etYear.getText().toString();
-                    String genre = etGenre.getText().toString();
+               .setTitle("Agregar Contenido")
+               .setPositiveButton("Guardar", (dialog, which) -> {
+                   String title = etTitle.getText().toString();
+                   String type = actvType.getText().toString();
+                   String durationStr = etDuration.getText().toString();
+                   String genre = etGenre.getText().toString();
+                   String yearStr = etYear.getText().toString();
+                   String details = ((TextInputEditText) dialogView.findViewById(R.id.etDetails)).getText().toString();
 
-                    if (title.isEmpty() || type.isEmpty() || durationStr.isEmpty() || 
-                        yearStr.isEmpty() || genre.isEmpty()) {
-                        Toast.makeText(this, "Por favor complete todos los campos", Toast.LENGTH_SHORT).show();
-                        return;
-                    }
+                   // Solo el título es obligatorio
+                   if (title.isEmpty()) {
+                       Toast.makeText(this, "Por favor ingrese un título", Toast.LENGTH_SHORT).show();
+                       return;
+                   }
 
-                    int duration = Integer.parseInt(durationStr);
-                    int year = Integer.parseInt(yearStr);
-                    
-                    if (year < 1888 || year > Calendar.getInstance().get(Calendar.YEAR)) {
-                        Toast.makeText(this, "Por favor ingrese un año válido", Toast.LENGTH_SHORT).show();
-                        return;
-                    }
+                   Content newContent = new Content();
+                   newContent.setId(allContent.size() + 1); // Simple ID generation
+                   newContent.setTitle(title);
+                   newContent.setType(type.isEmpty() ? "Sin especificar" : type);
+                   newContent.setDuration(durationStr.isEmpty() ? 0 : Integer.parseInt(durationStr));
+                   newContent.setGenre(genre.isEmpty() ? "Sin especificar" : genre);
+                   newContent.setYear(yearStr.isEmpty() ? 0 : Integer.parseInt(yearStr));
+                   newContent.setWatched(false);
+                   newContent.setDetails(details);
+                   newContent.setCreatedAt(System.currentTimeMillis());
 
-                    String imagePath = null;
-                    if (selectedImageUri != null) {
-                        imagePath = saveImageToInternalStorage(selectedImageUri);
-                    }
+                   if (selectedImageUri != null) {
+                       String imagePath = saveImageToInternalStorage(selectedImageUri);
+                       newContent.setImagePath(imagePath);
+                   } else {
+                       // Si no se selecciona imagen, usar una imagen por defecto
+                       newContent.setImagePath("android.resource://" + getPackageName() + "/" + R.drawable.placeholder_image);
+                   }
 
-                    // Create Content object and save to database
-                    Content content = new Content();
-                    content.setTitle(title);
-                    content.setType(type);
-                    content.setDuration(duration);
-                    content.setYear(year);
-                    content.setGenre(genre);
-                    content.setImagePath(imagePath);
+                   allContent.add(newContent);
+                   loadRecentContent();
+                   Toast.makeText(this, "Contenido agregado exitosamente", Toast.LENGTH_SHORT).show();
+               })
+               .setNegativeButton("Cancelar", null)
+               .show();
+    }
 
-                    long id = dbHelper.insertContent(content);
-                    if (id != -1) {
-                        Toast.makeText(this, "Contenido agregado exitosamente", Toast.LENGTH_SHORT).show();
-                        loadRecentContent(); // Recargar la lista
-                    } else {
-                        Toast.makeText(this, "Error al agregar el contenido", Toast.LENGTH_SHORT).show();
-                    }
-                })
-                .setNegativeButton("Cancelar", null)
-                .show();
+    private void checkAndRequestPermissions() {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissionLauncher.launch(Manifest.permission.CAMERA);
+        } else {
+            showImageSourceDialog(currentImageView);
+        }
+    }
+
+    private void showImageSourceDialog(ImageView imageView) {
+        String[] options = {"Tomar foto", "Seleccionar de galería"};
+        
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Seleccionar imagen")
+               .setItems(options, (dialog, which) -> {
+                   if (which == 0) {
+                       // Tomar foto
+                       openCamera();
+                   } else {
+                       // Seleccionar de galería
+                       openGallery();
+                   }
+               })
+               .show();
+    }
+
+    private void openCamera() {
+        try {
+            photoFile = createImageFile();
+            if (photoFile != null) {
+                Uri photoURI = FileProvider.getUriForFile(this,
+                        "com.example.reelreminder2.fileprovider",
+                        photoFile);
+                Intent takePictureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+                takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, photoURI);
+                
+                // Agregar flags para dar permisos temporales
+                takePictureIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                takePictureIntent.addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+                
+                try {
+                    cameraLauncher.launch(takePictureIntent);
+                } catch (Exception e) {
+                    Toast.makeText(this, "Error al abrir la cámara: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                    e.printStackTrace();
+                }
+            }
+        } catch (IOException ex) {
+            Toast.makeText(this, "Error al crear el archivo de imagen", Toast.LENGTH_SHORT).show();
+            ex.printStackTrace();
+        }
+    }
+
+    private void openGallery() {
+        Intent intent = new Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
+        imagePickerLauncher.launch(intent);
+    }
+
+    private File createImageFile() throws IOException {
+        String timeStamp = String.valueOf(System.currentTimeMillis());
+        String imageFileName = "JPEG_" + timeStamp + "_";
+        File storageDir = getExternalFilesDir(android.os.Environment.DIRECTORY_PICTURES);
+        return File.createTempFile(
+            imageFileName,  /* prefix */
+            ".jpg",        /* suffix */
+            storageDir     /* directory */
+        );
     }
 
     private String saveImageToInternalStorage(Uri uri) {
         try {
             InputStream inputStream = getContentResolver().openInputStream(uri);
-            if (inputStream == null) return null;
-
-            // Create directory if it doesn't exist
-            File directory = new File(getFilesDir(), "content_images");
-            if (!directory.exists()) {
-                directory.mkdirs();
-            }
-
-            // Create unique filename
-            String filename = "content_" + System.currentTimeMillis() + ".jpg";
-            File file = new File(directory, filename);
-
-            // Copy image to internal storage
+            String fileName = "content_" + System.currentTimeMillis() + ".jpg";
+            File file = new File(getFilesDir(), fileName);
             FileOutputStream outputStream = new FileOutputStream(file);
+
             byte[] buffer = new byte[4096];
             int bytesRead;
             while ((bytesRead = inputStream.read(buffer)) != -1) {
@@ -293,7 +341,6 @@ public class DashboardActivity extends AppCompatActivity {
 
             inputStream.close();
             outputStream.close();
-
             return file.getAbsolutePath();
         } catch (IOException e) {
             e.printStackTrace();
@@ -304,14 +351,11 @@ public class DashboardActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        loadRecentContent(); // Recargar contenido al volver a la actividad
+        loadRecentContent();
     }
 
     @Override
-    protected void onDestroy() {
-        super.onDestroy();
-        if (dbHelper != null) {
-            dbHelper.close();
-        }
+    public void onWatchedStateChanged(Content content) {
+        contentAdapter.notifyDataSetChanged();
     }
 } 

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Base colors for dark theme -->
+    <color name="purple_200">#253745</color>
+    <color name="purple_500">#11212D</color>
+    <color name="purple_700">#06141B</color>
+    <color name="teal_200">#4A5C6A</color>
+    <color name="teal_700">#11212D</color>
+    <color name="black">#06141B</color>
+    <color name="white">#CCD0CF</color>
+    
+    <!-- App theme colors for dark theme -->
+    <color name="colorPrimary">#4A5C6A</color>
+    <color name="colorPrimaryDark">#06141B</color>
+    <color name="colorAccent">#9BA8AB</color>
+    <color name="colorBackground">#11212D</color>
+    <color name="colorSurface">#253745</color>
+    <color name="colorOnSurface">#CCD0CF</color>
+    <color name="colorText">#CCD0CF</color>
+    <color name="colorTextPrimary">#FFFFFF</color>
+    <color name="colorTextSecondary">#9BA8AB</color>
+    <color name="colorGrayLight">#253745</color>
+    <color name="colorError">#CF6679</color>
+    <color name="colorSuccess">#9BA8AB</color>
+</resources> 

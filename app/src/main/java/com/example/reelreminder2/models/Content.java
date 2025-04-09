@@ -10,6 +10,7 @@ public class Content {
     private int year;
     private long createdAt;
     private boolean watched;
+    private String details;
 
     public Content() {
         this.createdAt = System.currentTimeMillis();
@@ -86,5 +87,13 @@ public class Content {
 
     public void setWatched(boolean watched) {
         this.watched = watched;
+    }
+
+    public String getDetails() {
+        return details;
+    }
+
+    public void setDetails(String details) {
+        this.details = details;
     }
 } 

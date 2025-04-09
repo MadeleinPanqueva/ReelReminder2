@@ -14,6 +14,8 @@ public abstract class BaseAuthenticatedActivity extends AppCompatActivity {
     
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        // Aplicar el tema antes de super.onCreate
+        setTheme(ThemeManager.getThemeResource(ThemeManager.getInstance(this).isDarkTheme()));
         super.onCreate(savedInstanceState);
         
         // Initialize SessionManager

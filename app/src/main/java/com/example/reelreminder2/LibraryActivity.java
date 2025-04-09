@@ -1,6 +1,5 @@
 package com.example.reelreminder2;
 
-import android.database.Cursor;
 import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextWatcher;
@@ -13,12 +12,13 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.reelreminder2.adapters.ContentAdapter;
+import com.example.reelreminder2.fragments.ContentDetailBottomSheet;
 import com.example.reelreminder2.models.Content;
 
 import java.util.ArrayList;
 import java.util.List;
 
-public class LibraryActivity extends BaseAuthenticatedActivity {
+public class LibraryActivity extends BaseAuthenticatedActivity implements ContentDetailBottomSheet.OnContentActionListener {
     
     private RecyclerView rvContent;
     private TextView tvEmptyLibrary;
@@ -28,7 +28,6 @@ public class LibraryActivity extends BaseAuthenticatedActivity {
     private TextView tvFilterYear;
     private TextView tvFilterGenre;
     private EditText etSearch;
-    private DatabaseHelper dbHelper;
     private ContentAdapter adapter;
     private List<Content> allContent;
 
@@ -39,8 +38,6 @@ public class LibraryActivity extends BaseAuthenticatedActivity {
 
     @Override
     protected void initializeViews() {
-        dbHelper = new DatabaseHelper(this);
-        
         // Initialize views
         rvContent = findViewById(R.id.rvContent);
         tvEmptyLibrary = findViewById(R.id.tvEmptyLibrary);
@@ -56,10 +53,11 @@ public class LibraryActivity extends BaseAuthenticatedActivity {
         adapter = new ContentAdapter(
             new ArrayList<>(), 
             content -> {
-                // TODO: Handle content item click
-                Toast.makeText(this, "Seleccionado: " + content.getTitle(), Toast.LENGTH_SHORT).show();
-            },
-            dbHelper
+                ContentDetailBottomSheet bottomSheet = ContentDetailBottomSheet.newInstance(content);
+                bottomSheet.setContent(content);
+                bottomSheet.setOnContentActionListener(this);
+                bottomSheet.show(getSupportFragmentManager(), "content_detail");
+            }
         );
         rvContent.setAdapter(adapter);
 
@@ -89,33 +87,8 @@ public class LibraryActivity extends BaseAuthenticatedActivity {
     }
     
     private void loadContent() {
-        allContent = new ArrayList<>();
-        Cursor cursor = dbHelper.getAllContent();
-        
-        if (cursor != null && cursor.moveToFirst()) {
-            do {
-                Content content = new Content();
-                content.setId(cursor.getLong(cursor.getColumnIndex(DatabaseHelper.COLUMN_ID)));
-                content.setTitle(cursor.getString(cursor.getColumnIndex(DatabaseHelper.COLUMN_TITLE)));
-                content.setType(cursor.getString(cursor.getColumnIndex(DatabaseHelper.COLUMN_TYPE)));
-                content.setDuration(cursor.getInt(cursor.getColumnIndex(DatabaseHelper.COLUMN_DURATION)));
-                content.setGenre(cursor.getString(cursor.getColumnIndex(DatabaseHelper.COLUMN_GENRE)));
-                content.setImagePath(cursor.getString(cursor.getColumnIndex(DatabaseHelper.COLUMN_IMAGE_PATH)));
-                content.setYear(cursor.getInt(cursor.getColumnIndex(DatabaseHelper.COLUMN_YEAR)));
-                content.setWatched(cursor.getInt(cursor.getColumnIndex(DatabaseHelper.COLUMN_WATCHED)) == 1);
-                content.setCreatedAt(cursor.getLong(cursor.getColumnIndex(DatabaseHelper.COLUMN_CREATED_AT)));
-                allContent.add(content);
-            } while (cursor.moveToNext());
-            cursor.close();
-        }
-
-        // Si no hay contenido, insertar datos de ejemplo
-        if (allContent.isEmpty()) {
-            dbHelper.insertSampleContent();
-            loadContent(); // Recargar después de insertar
-            return;
-        }
-
+        // Usar la lista estática de DashboardActivity
+        allContent = new ArrayList<>(DashboardActivity.getAllContent());
         adapter.updateContent(allContent);
         updateEmptyState();
     }
@@ -161,26 +134,21 @@ public class LibraryActivity extends BaseAuthenticatedActivity {
     }
     
     private void showYearPicker() {
-        // TODO: Implement year picker dialog
         Toast.makeText(this, "Seleccionar año", Toast.LENGTH_SHORT).show();
     }
     
     private void showGenrePicker() {
-        // TODO: Implement genre picker dialog
         Toast.makeText(this, "Seleccionar género", Toast.LENGTH_SHORT).show();
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-        loadContent(); // Recargar contenido al volver a la actividad
+        loadContent();
     }
 
     @Override
-    protected void onDestroy() {
-        super.onDestroy();
-        if (dbHelper != null) {
-            dbHelper.close();
-        }
+    public void onWatchedStateChanged(Content content) {
+        adapter.notifyDataSetChanged();
     }
 } 
